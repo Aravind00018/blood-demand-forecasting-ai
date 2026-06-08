@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>HemaForecast AI</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link rel="stylesheet" href="static/css/style.css">
+</head>
+<body>
+
+<!-- LOGIN PAGE -->
+<div id="loginPage">
+  <div class="login-bg"></div>
+  <div class="login-grid"></div>
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-icon">🩸</div>
+      <div>
+        <h2>HemaForecast AI</h2>
+        <p>Blood Demand Prediction System</p>
+      </div>
+    </div>
+    <h1 class="login-title">Welcome back</h1>
+    <p class="login-sub">Sign in to access the real-time LSTM blood demand forecasting dashboard.</p>
+    <div class="demo-creds">
+      Demo accounts:<br>
+      <strong>admin</strong> / <strong>admin123</strong> &nbsp;·&nbsp;
+      <strong>doctor</strong> / <strong>med2024</strong> &nbsp;·&nbsp;
+      <strong>staff</strong> / <strong>staff123</strong>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Username</label>
+      <input class="form-input" id="loginUser" type="text" placeholder="Enter username">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input class="form-input" id="loginPass" type="password" placeholder="Enter password">
+    </div>
+    <div id="loginError" class="login-error"></div>
+    <button class="btn-login" id="loginBtn" onclick="doLogin()">Sign In →</button>
+    <p class="login-footer">© 2026 HemaForecast AI · LSTM v2.4</p>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-logo">
+      <div class="logo-icon-sm">🩸</div>
+      <span>HemaForecast AI</span>
+    </div>
+    <nav class="topbar-nav" id="topNav">
+      <button class="nav-btn active" data-page="dashboard">Dashboard</button>
+      <button class="nav-btn" data-page="forecast">Forecast</button>
+      <button class="nav-btn" data-page="analytics">Analytics</button>
+      <button class="nav-btn" data-page="alerts">Alerts <span id="alertBadge" class="badge-pill">0</span></button>
+      <button class="nav-btn" data-page="data">Data Entry</button>
+      <button class="nav-btn" data-page="reports">Reports</button>
+      <button class="nav-btn" data-page="settings">Settings</button>
+    </nav>
+    <div class="topbar-right">
+      <div class="live-ind"><div class="live-dot"></div>LIVE</div>
+      <div class="time-chip" id="timeClock">--:--:--</div>
+      <div class="user-chip"><div class="user-av" id="userAv">A</div><span id="userName">Admin</span></div>
+      <button class="logout-btn" onclick="doLogout()">Sign out</button>
+    </div>
+  </div>
+
+  <div class="main-wrap">
+
+    <!-- ── DASHBOARD ── -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-hdr">
+        <div><h1 class="page-title">Real-Time Dashboard</h1><p class="page-sub">Live blood demand monitoring · LSTM predictions</p></div>
+        <div style="font-size:11px;color:var(--t2)">Model: <span style="color:var(--teal)" id="modelStatus">Checking...</span></div>
+      </div>
+      <div class="ticker-row" id="tickerRow"></div>
+      <div class="stats-grid" id="statsGrid"></div>
+      <div class="g2">
+        <div class="panel">
+          <div class="ph">
+            <div class="pt">Demand Trend <span class="tag">24 months</span></div>
+            <select class="ctrl-sel" id="trendBGSel" onchange="renderTrendChart()">
+              <option value="all">All Groups</option>
+              <option value="O+">O+</option><option value="O-">O-</option>
+              <option value="A+">A+</option><option value="A-">A-</option>
+              <option value="B+">B+</option><option value="B-">B-</option>
+              <option value="AB+">AB+</option><option value="AB-">AB-</option>
+            </select>
+          </div>
+          <div class="cw" style="height:220px"><canvas id="trendChart"></canvas></div>
+        </div>
+        <div class="panel">
+          <div class="ph"><div class="pt">Distribution <span class="tag">current month</span></div></div>
+          <div class="cw" style="height:195px"><canvas id="distChart"></canvas></div>
+          <div id="distLeg" class="flex-wrap-sm"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="ph">
+          <div class="pt">Attention Weight Heatmap <span class="tag">Bahdanau soft-attention</span></div>
+          <span class="tag tag-teal">higher = more influential timestep</span>
+        </div>
+        <div style="overflow-x:auto"><div id="attHeat" style="min-width:500px"></div></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">
+          <span style="font-size:10px;color:var(--t3)">← Low</span>
+          <div style="flex:1;max-width:220px;margin:0 12px;height:6px;border-radius:3px;background:linear-gradient(to right,rgba(232,69,69,0.15),#e84545);margin-top:2px"></div>
+          <span style="font-size:10px;color:var(--t3)">High →</span>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="ph">
+          <div class="pt">LSTM Forecast — Next 6 Months <span class="tag">all groups</span></div>
+          <span class="tag tag-red" id="critTag">loading...</span>
+        </div>
+        <div class="tw"><table class="dt" id="summTable"></table></div>
+      </div>
+    </div>
+
+    <!-- ── FORECAST ── -->
+    <div class="page" id="page-forecast">
+      <div class="page-hdr"><h1 class="page-title">Blood Demand Forecast</h1><p class="page-sub">BiLSTM + Bahdanau Attention · Bayesian Optimized</p></div>
+      <div class="panel">
+        <div class="ph"><div class="pt">Select Blood Group & Horizon</div></div>
+        <div class="bg-sel" id="fcastBGSel"></div>
+        <div class="ctrl-row">
+          <span class="ctrl-lbl">Horizon:</span>
+          <input type="range" class="ctrl-range" id="horizSlider" min="3" max="12" value="6" step="1" oninput="setHorizon(this.value)">
+          <span class="ctrl-val" id="horizVal">6 months</span>
+          <span class="ctrl-lbl" style="margin-left:12px">CI Level:</span>
+          <select class="ctrl-sel" id="ciSel" onchange="doForecast()">
+            <option value="90">90%</option><option value="95" selected>95%</option><option value="99">99%</option>
+          </select>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="ph">
+          <div class="pt" id="fcastTitle">Forecast: O+ <span class="tag">historical + predicted</span></div>
+          <div style="font-size:11px;color:var(--t2)" id="fcastMeta"></div>
+        </div>
+        <div class="legend">
+          <span class="li"><span class="ll" style="background:var(--red)"></span>Historical</span>
+          <span class="li"><span class="ll" style="background:var(--purple)"></span>LSTM Forecast</span>
+          <span class="li"><span class="ll" style="background:var(--teal);opacity:0.5"></span>95% CI Band</span>
+        </div>
+        <div class="cw" style="height:300px"><canvas id="mainFcastChart"></canvas></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><div class="pt">Monthly Detail <span class="tag" id="detailTag">O+</span></div></div>
+        <div class="tw"><table class="dt" id="detailTable"></table></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><div class="pt">Model Architecture <span class="tag">BiLSTM + Attention</span></div></div>
+        <div class="arch-row" id="archRow"></div>
+        <div class="perf-grid" id="perfGrid"></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><div class="pt">Bayesian Optimization <span class="tag">Optuna · 50 trials</span></div></div>
+        <div class="optim-grid" id="optimGrid"></div>
+      </div>
+    </div>
+
+    <!-- ── ANALYTICS ── -->
+    <div class="page" id="page-analytics">
+      <div class="page-hdr"><h1 class="page-title">Analytics & Insights</h1><p class="page-sub">Seasonal patterns, year-over-year trends, model convergence</p></div>
+      <div class="g2">
+        <div class="panel"><div class="ph"><div class="pt">Seasonal Pattern <span class="tag">monthly avg</span></div></div><div class="cw" style="height:220px"><canvas id="seasonChart"></canvas></div></div>
+        <div class="panel"><div class="ph"><div class="pt">Year-over-Year <span class="tag">2024 vs 2025</span></div></div><div class="cw" style="height:220px"><canvas id="yoyChart"></canvas></div></div>
+      </div>
+      <div class="g2">
+        <div class="panel"><div class="ph"><div class="pt">Demand Volatility <span class="tag">CV % by group</span></div></div><div class="cw" style="height:220px"><canvas id="volatChart"></canvas></div></div>
+        <div class="panel"><div class="ph"><div class="pt">Training Loss Curve <span class="tag">LSTM convergence</span></div></div><div class="cw" style="height:220px"><canvas id="lossChart"></canvas></div></div>
+      </div>
+      <div class="panel"><div class="ph"><div class="pt">Blood Group Summary Statistics <span class="tag">48 months</span></div></div><div class="tw"><table class="dt" id="statsTable"></table></div></div>
+    </div>
+
+    <!-- ── ALERTS ── -->
+    <div class="page" id="page-alerts">
+      <div class="page-hdr"><h1 class="page-title">Alerts & Notifications</h1><p class="page-sub">Real-time shortage warnings and demand spike predictions</p></div>
+      <div class="g2">
+        <div><div class="sec-label">Critical & Active</div><div id="alertCrit"></div></div>
+        <div><div class="sec-label">Warnings & Info</div><div id="alertWarn"></div></div>
+      </div>
+    </div>
+
+    <!-- ── DATA ENTRY ── -->
+    <div class="page" id="page-data">
+      <div class="page-hdr"><h1 class="page-title">Data Entry</h1><p class="page-sub">Add monthly records to update LSTM training data</p></div>
+      <div class="g2">
+        <div class="panel">
+          <div class="ph"><div class="pt">Add Monthly Record</div></div>
+          <div class="frow">
+            <div class="fg"><label class="fl">Month</label><input class="fi" type="month" id="entMonth" value="2026-04"></div>
+            <div class="fg"><label class="fl">Hospital</label><input class="fi" type="text" id="entHosp" placeholder="City General Hospital"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px" id="bgInputs"></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn-p" onclick="submitEntry()">Submit Record</button>
+            <button class="btn-s" onclick="clearEntry()">Clear</button>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="ph"><div class="pt">Recent Entries <span class="tag" id="entCount">0 records</span></div></div>
+          <div class="tw"><table class="dt" id="entTable"></table></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="ph"><div class="pt">Model Retrain</div></div>
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <button class="btn-p" onclick="triggerRetrain()">Trigger Retrain</button>
+          <div>
+            <div style="font-size:12px;color:var(--t2)">Status: <span style="color:var(--teal)" id="retrainStatus">Ready</span></div>
+            <div style="font-size:11px;color:var(--t3)" id="retrainInfo">Run python train.py for initial training</div>
+          </div>
+          <div style="flex:1;background:var(--bg3);border-radius:4px;height:6px;overflow:hidden;min-width:100px">
+            <div id="retrainBar" style="height:100%;background:var(--teal);width:0;border-radius:4px;transition:width 0.4s"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── REPORTS ── -->
+    <div class="page" id="page-reports">
+      <div class="page-hdr"><h1 class="page-title">Reports</h1><p class="page-sub">Download forecasts and model summaries</p></div>
+      <div id="reportsList"></div>
+    </div>
+
+    <!-- ── SETTINGS ── -->
+    <div class="page" id="page-settings">
+      <div class="page-hdr"><h1 class="page-title">Settings</h1><p class="page-sub">Configure model, notifications, and user preferences</p></div>
+      <div class="settings-wrap">
+        <div class="s-nav">
+          <div class="sn active" onclick="showSN(this,'sm')">Model Config</div>
+          <div class="sn" onclick="showSN(this,'sn')">Notifications</div>
+          <div class="sn" onclick="showSN(this,'su')">Users</div>
+          <div class="sn" onclick="showSN(this,'ss')">System Info</div>
+        </div>
+        <div class="panel">
+          <div id="sm">
+            <div class="s-row"><div class="s-info"><strong>Auto-retrain on new data</strong><span>Trigger retraining when 10+ new records added</span></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+            <div class="s-row"><div class="s-info"><strong>Bahdanau Attention</strong><span>Soft attention between BiLSTM layers</span></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+            <div class="s-row"><div class="s-info"><strong>Bidirectional LSTM</strong><span>Process sequences forward and backward</span></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+            <div class="s-row"><div class="s-info"><strong>Bayesian Optimization</strong><span>Auto-tune hyperparameters (Optuna)</span></div><div class="toggle" onclick="this.classList.toggle('on')"></div></div>
+          </div>
+          <div id="sn" style="display:none">
+            <div class="s-row"><div class="s-info"><strong>Critical shortage alerts</strong><span>Email when group drops below threshold</span></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+            <div class="s-row"><div class="s-info"><strong>Weekly forecast digest</strong><span>Email summary every Monday 08:00</span></div><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+          </div>
+          <div id="su" style="display:none">
+            <table class="dt"><thead><tr><th>Username</th><th>Role</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td>admin</td><td>Administrator</td><td><span class="rb rl">Active</span></td></tr>
+              <tr><td>doctor</td><td>Medical Staff</td><td><span class="rb rl">Active</span></td></tr>
+              <tr><td>staff</td><td>Data Entry</td><td><span class="rb rl">Active</span></td></tr>
+            </tbody></table>
+          </div>
+          <div id="ss" style="display:none">
+            <div class="s-row"><div class="s-info"><strong>Model</strong><span>BiLSTM-Attention v2.4 · TensorFlow 2.15</span></div></div>
+            <div class="s-row"><div class="s-info"><strong>Backend</strong><span>Flask 3.0 · Python 3.12</span></div></div>
+            <div class="s-row"><div class="s-info"><strong>API Base</strong><span id="apiBase">http://localhost:5000/api</span></div></div>
+            <div class="s-row"><div class="s-info"><strong>Data</strong><span>48 months · 8 blood groups · CSV store</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main-wrap -->
+</div><!-- /app -->
+
+<div id="toast"><span id="toastIcon"></span><span id="toastMsg"></span></div>
+
+<script src="static/js/app.js"></script>
+</body>
+</html>
