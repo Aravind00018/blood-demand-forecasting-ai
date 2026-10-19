@@ -1,0 +1,7 @@
+backend/
+data/
+models/
+app.py
+generate_data.py
+train.py
+requirements.txt

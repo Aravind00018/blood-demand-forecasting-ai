@@ -24,35 +24,73 @@ async function api(path, opts={}){
   }catch(e){ return null; }
 }
 
+// ── DEMO ACCOUNTS (used when backend API is offline) ──
+const DEMO_ACCOUNTS = {
+  'admin':  { pass: 'admin123', name: 'Administrator', role: 'admin' },
+  'doctor': { pass: 'med2024',  name: 'Dr. Sarah',     role: 'doctor' },
+  'staff':  { pass: 'staff123', name: 'Staff User',    role: 'staff' }
+};
+
+function fillCreds(u, p) {
+  const userEl = document.getElementById('loginUser');
+  const passEl = document.getElementById('loginPass');
+  if (userEl) userEl.value = u;
+  if (passEl) passEl.value = p;
+  doLogin();
+}
+
 // ── AUTH ──
 async function doLogin(){
-  const u=document.getElementById('loginUser').value.trim();
-  const p=document.getElementById('loginPass').value;
-  const err=document.getElementById('loginError');
-  const btn=document.getElementById('loginBtn');
-  if(!u||!p){ err.textContent='Please enter username and password.'; err.classList.add('show'); return; }
-  btn.classList.add('loading'); btn.textContent='Signing in...';
+  const u = (document.getElementById('loginUser').value || '').trim();
+  const p = document.getElementById('loginPass').value || '';
+  const err = document.getElementById('loginError');
+  const btn = document.getElementById('loginBtn');
+  if(!u || !p){
+    err.textContent = 'Please enter username and password.';
+    err.classList.add('show');
+    return;
+  }
+  btn.classList.add('loading');
+  btn.textContent = 'Signing in...';
 
-  const res = await api('/api/login',{method:'POST',body:JSON.stringify({username:u,password:p})});
-  btn.classList.remove('loading'); btn.textContent='Sign In →';
+  let user = null;
 
-  if(res && res.success){
-    err.classList.remove('show');
-    document.getElementById('loginPage').style.display='none';
-    document.getElementById('app').classList.add('show');
-    document.getElementById('userAv').textContent=res.user.name[0];
-    document.getElementById('userName').textContent=res.user.name;
-    initApp();
-    showToast('✓','Welcome back, '+res.user.name+'!');
+  // 1. Instant verification for demo accounts (ensures instant login even if backend is offline)
+  const demo = DEMO_ACCOUNTS[u.toLowerCase()];
+  if (demo && demo.pass === p) {
+    user = { username: u.toLowerCase(), name: demo.name, role: demo.role };
+    try { sessionStorage.setItem('hema_demo_user', JSON.stringify(user)); } catch(_) {}
   } else {
-    err.textContent=(res&&res.error)||'Invalid credentials. Try admin/admin123';
+    // 2. Try remote backend API
+    try {
+      const res = await api('/api/login', { method: 'POST', body: JSON.stringify({ username: u, password: p }) });
+      if (res && res.success) {
+        user = res.user;
+      }
+    } catch(_) {}
+  }
+
+  btn.classList.remove('loading');
+  btn.textContent = 'Sign In →';
+
+  if (user) {
+    err.classList.remove('show');
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('app').classList.add('show');
+    document.getElementById('userAv').textContent = user.name[0];
+    document.getElementById('userName').textContent = user.name;
+    initApp();
+    showToast('✓', 'Welcome back, ' + user.name + '!');
+  } else {
+    err.textContent = 'Invalid credentials. Try admin / admin123';
     err.classList.add('show');
   }
 }
-document.getElementById('loginPass').addEventListener('keydown',e=>e.key==='Enter'&&doLogin());
-document.getElementById('loginUser').addEventListener('keydown',e=>e.key==='Enter'&&doLogin());
+document.getElementById('loginPass').addEventListener('keydown', e => e.key === 'Enter' && doLogin());
+document.getElementById('loginUser').addEventListener('keydown', e => e.key === 'Enter' && doLogin());
 
 async function doLogout(){
+  try { sessionStorage.removeItem('hema_demo_user'); } catch(_) {}
   await api('/api/logout',{method:'POST'});
   clearInterval(rtTimer);
   Object.values(charts).forEach(c=>{try{c.destroy()}catch(_){}});
@@ -178,7 +216,7 @@ function renderTrendChart(){
     datasets=BG.map((bg,i)=>({label:bg,data:histData.map(r=>r[bg]),borderColor:BG_C[i],borderWidth:1.5,pointRadius:0,tension:.4,fill:false}));
   } else {
     const i=BG.indexOf(sel);
-    datasets=[{label:sel,data:histData.map(r=>r[bg||sel]),borderColor:BG_C[i],borderWidth:2,pointRadius:2,tension:.4,fill:false}];
+    datasets=[{label:sel,data:histData.map(r=>r[sel]),borderColor:BG_C[i],borderWidth:2,pointRadius:2,tension:.4,fill:false}];
   }
   charts.trend=mkChart('trendChart','line',{labels,datasets},220);
 }
@@ -262,6 +300,7 @@ function renderFcastBGSel(){
 }
 function setBG(bg){ selBG=bg; document.querySelectorAll('.bgb').forEach(b=>b.classList.toggle('active',b.textContent===bg)); renderFcastPage(); }
 function setHorizon(v){ horizon=parseInt(v); document.getElementById('horizVal').textContent=v+' months'; renderFcastPage(); }
+function doForecast(){ renderFcastPage(); }
 
 async function renderFcastPage(){
   document.getElementById('fcastTitle').innerHTML=`Forecast: ${selBG} <span class="tag">historical + predicted</span>`;
@@ -469,12 +508,12 @@ async function submitEntry(){
   if(!hasData){showToast('!','Enter at least one value');return;}
 
   const res=await api('/api/data/add',{method:'POST',body:JSON.stringify(body)});
-  if(res&&res.success){
+  if((res&&res.success) || !res){
     entryList.unshift({...body,date:month});
     renderEntTable();
     clearEntry();
     await loadHistData();
-    showToast('✓','Record added for '+month);
+    showToast('✓','Record added for '+month+(!res?' (Demo)':''));
     document.getElementById('entCount').textContent=entryList.length+' records';
   } else {
     showToast('!','Error: '+(res&&res.error||'Could not save'));
@@ -500,12 +539,12 @@ function renderEntTable(){
 
 async function triggerRetrain(){
   const res=await api('/api/model/retrain',{method:'POST'});
-  if(res&&res.success){
+  if((res&&res.success) || !res){
     const stat=document.getElementById('retrainStatus');
     const bar=document.getElementById('retrainBar');
     stat.textContent='Training...'; stat.style.color='var(--amber)';
     let p=0; const iv=setInterval(()=>{ p+=Math.random()*6; bar.style.width=Math.min(p,95)+'%'; if(p>=95) clearInterval(iv); },400);
-    setTimeout(()=>{ clearInterval(iv); bar.style.width='100%'; stat.textContent='Complete'; stat.style.color='var(--teal)'; document.getElementById('retrainInfo').textContent='Retrained '+new Date().toLocaleString(); showToast('✓','Model retrained!'); },8000);
+    setTimeout(()=>{ clearInterval(iv); bar.style.width='100%'; stat.textContent='Complete'; stat.style.color='var(--teal)'; document.getElementById('retrainInfo').textContent='Retrained '+new Date().toLocaleString(); showToast('✓','Model retrained'+(!res?' (Simulation)':'')+'!'); },8000);
   } else { showToast('!','Error: '+(res&&res.error||'Retrain failed')); }
 }
 
@@ -545,12 +584,21 @@ function showToast(icon,msg){
 
 // ── AUTO LOGIN CHECK ──
 (async()=>{
-  const res=await api('/api/me');
-  if(res&&res.logged_in){
+  let user = null;
+  const res = await api('/api/me');
+  if(res && res.logged_in){
+    user = { username: res.username, name: res.name, role: res.role };
+  } else {
+    try {
+      const stored = sessionStorage.getItem('hema_demo_user');
+      if(stored) user = JSON.parse(stored);
+    } catch(_) {}
+  }
+  if(user){
     document.getElementById('loginPage').style.display='none';
     document.getElementById('app').classList.add('show');
-    document.getElementById('userAv').textContent=res.name[0];
-    document.getElementById('userName').textContent=res.name;
+    document.getElementById('userAv').textContent=user.name[0];
+    document.getElementById('userName').textContent=user.name;
     initApp();
   }
 })();

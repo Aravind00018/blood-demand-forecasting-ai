@@ -6,7 +6,7 @@
 <title>HemaForecast AI</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<link rel="stylesheet" href="static/css/style.css">
+<link rel="stylesheet" href="static/css/style.css?v=2.4.3">
 </head>
 <body>
 
@@ -25,10 +25,10 @@
     <h1 class="login-title">Welcome back</h1>
     <p class="login-sub">Sign in to access the real-time LSTM blood demand forecasting dashboard.</p>
     <div class="demo-creds">
-      Demo accounts:<br>
-      <strong>admin</strong> / <strong>admin123</strong> &nbsp;·&nbsp;
-      <strong>doctor</strong> / <strong>med2024</strong> &nbsp;·&nbsp;
-      <strong>staff</strong> / <strong>staff123</strong>
+      Demo accounts (click to fill & sign in):<br>
+      <span style="cursor:pointer;text-decoration:underline" onclick="fillCreds('admin','admin123')"><strong>admin</strong> / admin123</span> &nbsp;·&nbsp;
+      <span style="cursor:pointer;text-decoration:underline" onclick="fillCreds('doctor','med2024')"><strong>doctor</strong> / med2024</span> &nbsp;·&nbsp;
+      <span style="cursor:pointer;text-decoration:underline" onclick="fillCreds('staff','staff123')"><strong>staff</strong> / staff123</span>
     </div>
     <div class="form-group">
       <label class="form-label">Username</label>
@@ -271,6 +271,6 @@
 
 <div id="toast"><span id="toastIcon"></span><span id="toastMsg"></span></div>
 
-<script src="static/js/app.js"></script>
+<script src="static/js/app.js?v=2.4.3"></script>
 </body>
 </html>
